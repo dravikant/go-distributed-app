@@ -1,6 +1,7 @@
 package log
 
 import (
+	"fmt"
 	"io/ioutil"
 	stlog "log"
 	"net/http"
@@ -22,6 +23,7 @@ func (fl fileLog) Write(data []byte) (int, error) {
 
 	f, err := os.OpenFile(string(fl), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
+		fmt.Println(err)
 		return 0, err
 	}
 

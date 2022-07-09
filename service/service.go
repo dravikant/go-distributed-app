@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/dravikant/go-distributed-app/registry"
 )
 
 /*
@@ -13,13 +15,20 @@ import (
 
 //public function to kick-start the web service
 //it is kept generic to use it for multiple services
-func Start(ctx context.Context, serviceName, host, port string, registerHandlersFunc func()) (context.Context, error) {
+func Start(ctx context.Context, reg registry.Registration, host, port string, registerHandlersFunc func()) (context.Context, error) {
 
 	//call the register handler func
 	registerHandlersFunc()
 
 	//create new context
-	ctx = startService(ctx, serviceName, host, port)
+	ctx = startService(ctx, string(reg.ServiceName), host, port)
+
+	//register the service
+	err := registry.RegisterService(reg)
+
+	if err != nil {
+		return ctx, nil
+	}
 
 	return ctx, nil
 
@@ -42,7 +51,7 @@ func startService(ctx context.Context, serviceName, host, port string) context.C
 
 	//another go routine to provide user an option to stop the service i.e. server
 	go func() {
-		log.Println("%v started. Press any key to stop", serviceName)
+		log.Printf("%v started. Press any key to stop\n", serviceName)
 		var s string
 		fmt.Scan(&s)
 		//if we receive input from user, gracefully shutdown the server i.e service

@@ -6,6 +6,7 @@ import (
 	stlog "log"
 
 	"github.com/dravikant/go-distributed-app/log"
+	"github.com/dravikant/go-distributed-app/registry"
 	"github.com/dravikant/go-distributed-app/service"
 )
 
@@ -21,8 +22,14 @@ func main() {
 	//instantiate host and port
 	//TODO: read these from config file
 	host, port := "localhost", "4000"
+	serviceAddress := fmt.Sprintf("http://%v:%v", host, port)
 
-	ctx, err := service.Start(context.Background(), "Log Service", host, port, log.RegisterHandlers)
+	var r registry.Registration
+
+	r.ServiceName = registry.LogService
+	r.ServiceURL = serviceAddress
+
+	ctx, err := service.Start(context.Background(), r, host, port, log.RegisterHandlers)
 
 	if err != nil {
 		stlog.Fatal(err)
