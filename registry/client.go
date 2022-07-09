@@ -23,7 +23,25 @@ func RegisterService(r Registration) error {
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("Failed to register service, got response code %v from Registry service", res.StatusCode)
+		return fmt.Errorf("failed to register service, got response code %v from registry service", res.StatusCode)
+	}
+
+	return nil
+
+}
+
+func ShutdownService(serviceURL string) error {
+
+	req, err := http.NewRequest(http.MethodDelete, ServiceURL, bytes.NewBuffer([]byte(serviceURL)))
+
+	if err != nil {
+		return err
+	}
+
+	req.Header.Add("Content-Type", "text/plain")
+	res, err := http.DefaultClient.Do(req)
+	if res.StatusCode != http.StatusOK || err != nil {
+		return fmt.Errorf("de-registration failed, registry service returned with code %v", res.StatusCode)
 	}
 
 	return nil
