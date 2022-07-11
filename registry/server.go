@@ -40,7 +40,7 @@ func (r *registry) remove(url string) error {
 		}
 	}
 
-	return fmt.Errorf("Service at URL %v not found", url)
+	return fmt.Errorf("service at URL %v not found", url)
 }
 
 //create a registry instance
