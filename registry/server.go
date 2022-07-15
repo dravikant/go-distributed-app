@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -16,7 +17,7 @@ const ServiceURL = "http://localhost" + ServerPort + "/services"
 
 type registry struct {
 	registrations []Registration
-	mutex         *sync.Mutex
+	mutex         *sync.RWMutex
 }
 
 //used for registration
@@ -24,6 +25,72 @@ func (r *registry) add(reg Registration) error {
 	r.mutex.Lock()
 	r.registrations = append(r.registrations, reg)
 	r.mutex.Unlock()
+	//registration is done Now update other registered services
+	err := r.sendRequiredServices(reg)
+	if err != nil {
+		fmt.Printf("unable to notify registration %v", err)
+	}
+	return nil
+}
+
+func (r *registry) sendRequiredServices(reg Registration) error {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	var p patch
+
+	fmt.Printf("sending required service for %v\n", reg.ServiceName)
+	//get all registrations from registry
+	for _, serviceReg := range r.registrations {
+		//get required services from current registrations
+		for _, reqService := range reg.RequiredServices {
+
+			if serviceReg.ServiceName == reqService {
+				p.Added = append(p.Added, patchEntry{
+					Name: serviceReg.ServiceName,
+					URL:  serviceReg.ServiceURL,
+				})
+				fmt.Printf("found required service %v\n", serviceReg.ServiceName)
+			}
+		}
+	}
+
+	return r.sendPatch(p, reg.ServiceUpdateURL)
+}
+
+func (r registry) sendPatch(p patch, url string) error {
+	d, err := json.Marshal(p)
+	if err != nil {
+		fmt.Printf("error in marshal %v", err)
+		return err
+	}
+	fmt.Printf("d: %v\n", d)
+	fmt.Printf("p :%v\n", p)
+	_, err = http.Post(url, "application/json", bytes.NewBuffer(d))
+	if err != nil {
+		fmt.Printf("error in post %v", err)
+		//how abt retry
+
+		req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(d))
+		if err != nil {
+			return err
+		}
+		_, err = http.DefaultClient.Do(req)
+		if err != nil {
+			fmt.Printf("error in retry post %v", err)
+		}
+		// req.Close = true
+
+		fmt.Println("trying another time ")
+		req, err = http.NewRequest(http.MethodPost, url, bytes.NewBuffer(d))
+		var client = &http.Client{
+			Transport: &http.Transport{},
+		}
+
+		_, err = client.Do(req)
+		fmt.Printf("error in 2retry post %v", err)
+		return err
+	}
 	return nil
 }
 
@@ -44,7 +111,7 @@ func (r *registry) remove(url string) error {
 }
 
 //create a registry instance
-var reg = registry{registrations: make([]Registration, 0), mutex: new(sync.Mutex)}
+var reg = registry{registrations: make([]Registration, 0), mutex: new(sync.RWMutex)}
 
 //create the registry service itself
 type RegistryService struct{}

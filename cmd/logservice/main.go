@@ -22,12 +22,15 @@ func main() {
 	//instantiate host and port
 	//TODO: read these from config file
 	host, port := "localhost", "4000"
-	serviceAddress := fmt.Sprintf("http://%v:%v", host, port)
+	// serviceAddress := fmt.Sprintf("http://%v:%v", host, port)
+	serviceAddress := "http://" + host + ":" + port
 
 	var r registry.Registration
 
 	r.ServiceName = registry.LogService
 	r.ServiceURL = serviceAddress
+	r.RequiredServices = make([]registry.ServiceName, 0)
+	r.ServiceUpdateURL = r.ServiceURL + "/services"
 
 	ctx, err := service.Start(context.Background(), r, host, port, log.RegisterHandlers)
 

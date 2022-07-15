@@ -5,6 +5,8 @@ import (
 	"sync"
 )
 
+//business logic for grade service
+
 var (
 	students     Students
 	studentMutex sync.Mutex
