@@ -48,9 +48,11 @@ func (suh serviceUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	fmt.Println("received post call to serviceUpdateHandler")
 	dec := json.NewDecoder(r.Body)
 	var p patch
 	err := dec.Decode(&p)
+	fmt.Printf("serviceUpdateHandler patch %v\n", p)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusBadRequest)

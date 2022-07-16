@@ -30,6 +30,14 @@ func (r *registry) add(reg Registration) error {
 	if err != nil {
 		fmt.Printf("unable to notify registration %v", err)
 	}
+	//problem with only having sendRequiredServices is that a service gets notified
+	//about the required service only iff it is already running at the startup
+	//to notify it whenever a required service comes up following method is used
+	r.notify(patch{
+		Added: []patchEntry{
+			patchEntry{Name: reg.ServiceName, URL: reg.ServiceURL},
+		},
+	})
 	return nil
 }
 
@@ -56,6 +64,41 @@ func (r *registry) sendRequiredServices(reg Registration) error {
 	}
 
 	return r.sendPatch(p, reg.ServiceUpdateURL)
+}
+
+//only notify services which are interested
+func (r registry) notify(fullpatch patch) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	for _, reg := range r.registrations {
+		go func(reg Registration) {
+
+			for _, reqServices := range reg.RequiredServices {
+				p := patch{Added: []patchEntry{}, Removed: []patchEntry{}}
+				sendUpdate := false
+				for _, added := range fullpatch.Added {
+					if added.Name == reqServices {
+						p.Added = append(p.Added, added)
+						sendUpdate = true
+					}
+				}
+				for _, removed := range fullpatch.Removed {
+					if removed.Name == reqServices {
+						p.Removed = append(p.Removed, removed)
+						sendUpdate = true
+					}
+				}
+
+				if sendUpdate {
+					err := r.sendPatch(p, reg.ServiceUpdateURL)
+					if err != nil {
+						fmt.Println(err)
+						return
+					}
+				}
+			}
+		}(reg)
+	}
 }
 
 func (r registry) sendPatch(p patch, url string) error {
@@ -100,6 +143,13 @@ func (r *registry) remove(url string) error {
 	for index, registration := range r.registrations {
 
 		if registration.ServiceURL == url {
+			r.notify(patch{
+				Removed: []patchEntry{
+					patchEntry{
+						Name: registration.ServiceName,
+						URL:  registration.ServiceURL,
+					}},
+			})
 			r.mutex.Lock()
 			r.registrations = append(r.registrations[:index], r.registrations[index+1:]...)
 			r.mutex.Unlock()
